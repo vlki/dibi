@@ -226,7 +226,6 @@ class DibiConnection extends DibiObject
 	 */
 	final public function getResource()
 	{
-		trigger_error('Deprecated: use getDriver()->getResource(...) instead.', E_USER_WARNING);
 		return $this->driver->getResource();
 	}
 
@@ -452,7 +451,6 @@ class DibiConnection extends DibiObject
 	 */
 	public function escape($value, $type = dibi::FIELD_TEXT)
 	{
-		trigger_error('Deprecated: use getDriver()->escape(...) instead.', E_USER_WARNING);
 		$this->connect(); // MySQL & PDO require connection
 		return $this->driver->escape($value, $type);
 	}
@@ -468,7 +466,6 @@ class DibiConnection extends DibiObject
 	 */
 	public function unescape($value, $type = dibi::FIELD_BINARY)
 	{
-		trigger_error('Deprecated: use getDriver()->unescape(...) instead.', E_USER_WARNING);
 		return $this->driver->unescape($value, $type);
 	}
 
@@ -482,7 +479,6 @@ class DibiConnection extends DibiObject
 	 */
 	public function delimite($value)
 	{
-		trigger_error('Deprecated: use getDriver()->escape(...) instead.', E_USER_WARNING);
 		return $this->driver->escape($value, dibi::IDENTIFIER);
 	}
 
@@ -498,7 +494,6 @@ class DibiConnection extends DibiObject
 	 */
 	public function applyLimit(&$sql, $limit, $offset)
 	{
-		trigger_error('Deprecated: use getDriver()->applyLimit(...) instead.', E_USER_WARNING);
 		$this->driver->applyLimit($sql, $limit, $offset);
 	}
 
