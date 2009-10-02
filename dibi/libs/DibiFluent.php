@@ -376,11 +376,31 @@ class DibiFluent extends DibiObject implements IDataSource
 
 
 	/**
-	 * @return DibiDataSource
+	 * @return IDataSource
+	 * @throws DibiException
 	 */
-	public function toDataSource()
+	public function toDataSource($dataSourceClass = NULL)
 	{
-		return new DibiDataSource($this->connection->sql($this->_export()), $this->connection);
+		// detection of default IDataSource
+		if ($dataSourceClass === NULL) {
+			if ($this->connection->getDriver() instanceof DibiMsSqlDriver) {
+				$dataSourceClass = 'DibiMssqlDataSource';
+			} else {
+				$dataSourceClass = 'DibiDataSource';
+			}
+		}
+
+		if (!class_exists($dataSourceClass)) {
+			throw new DibiException('Class ' . $dataSourceClass . ' does not exist.');
+		}
+
+		$ds = new $dataSourceClass($this->connection->sql($this->_export()), $this->connection);
+
+		if (!$ds instanceof IDataSource) {
+			throw new DibiException('Class ' . $dataSourceClass . ' does not implement IDataSource.');
+		}
+
+		return $ds;
 	}
 
 

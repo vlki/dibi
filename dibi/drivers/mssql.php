@@ -29,6 +29,8 @@
  *   - 'database' - the database name to select
  *   - 'lazy' - if TRUE, connection will be established only when required
  *   - 'resource' - connection resource (optional)
+ *   - 'dbcharset' - character encoding of database (optional)
+ *   - 'charset' - character encoding of input and output (optional)
  *
  * @author     David Grudl
  * @copyright  Copyright (c) 2005, 2009 David Grudl
@@ -42,6 +44,14 @@ class DibiMsSqlDriver extends DibiObject implements IDibiDriver
 	/** @var resource  Resultset resource */
 	private $resultSet;
 
+	/** @var string  Databases character encoding */
+	private $dbcharset = 'Windows-1250';
+
+	/** @var string  Input and output character encoding */
+        private $charset = 'UTF-8';
+
+	/** @var mixed  SQL part for order by clause */
+	public $orderBy;
 
 
 	/**
@@ -78,6 +88,9 @@ class DibiMsSqlDriver extends DibiObject implements IDibiDriver
 		if (isset($config['database']) && !@mssql_select_db($config['database'], $this->connection)) { // intentionally @
 			throw new DibiDriverException("Can't select DB '$config[database]'.");
 		}
+
+		if (isset($config['dbcharset'])) $this->dbcharset = $config['dbcharset'];
+		if (isset($config['charset'])) $this->charset = $config['charset'];
 	}
 
 
@@ -101,6 +114,10 @@ class DibiMsSqlDriver extends DibiObject implements IDibiDriver
 	 */
 	public function query($sql)
 	{
+		if ($this->dbcharset !== NULL && $this->charset !== NULL) {
+			$sql = iconv($this->charset, $this->dbcharset . '//IGNORE', $sql);
+		}
+
 		$this->resultSet = @mssql_query($sql, $this->connection); // intentionally @
 
 		if ($this->resultSet === FALSE) {
@@ -254,13 +271,43 @@ class DibiMsSqlDriver extends DibiObject implements IDibiDriver
 	 */
 	public function applyLimit(&$sql, $limit, $offset)
 	{
-		// offset support is missing
-		if ($limit >= 0) {
-			$sql = 'SELECT TOP ' . (int) $limit . ' * FROM (' . $sql . ') t';
-		}
+		$orderBy = '';
+		if (isset($this->orderBy)) {
+			$orderBy = $this->orderBy;
+			$this->orderBy = NULL;
 
-		if ($offset) {
-			throw new NotImplementedException('Offset is not implemented.');
+			// from DibiTranslator
+			$vx = $vtx = array();
+			foreach ($orderBy as $k => $v) {
+				if (is_string($k)) {
+					$v = (is_string($v) && strncasecmp($v, 'd', 1)) || $v > 0 ? 'ASC' : 'DESC';
+					$vt = (is_string($v) && strncasecmp($v, 'd', 1)) || $v > 0 ? 'DESC' : 'ASC';
+					$vx[] = $this->escape($k, dibi::IDENTIFIER) . ' ' . $v;
+					$vtx[] = $this->escape($k, dibi::IDENTIFIER) . ' ' . $vt;
+				} else {
+					$vx[] = $this->escape($v, dibi::IDENTIFIER);
+					$vtx[] = $this->escape($v, dibi::IDENTIFIER);
+				}
+			}
+			$orderBy = implode(', ', $vx);
+			$orderByTwisted = implode(', ', $vtx);
+		}
+		
+		// @see http://josephlindsay.com/archives/2005/05/27/paging-results-in-ms-sql-server/
+		if ($limit >= 0 && $offset && $orderBy !== '') {
+			$sql = 'SELECT TOP ' . (int) $limit . ' * FROM (
+					SELECT TOP ' . (int) $limit . ' * FROM (
+						SELECT TOP ' . ((int) $limit + (int) $offset)  . ' * FROM (
+							' . $sql . '
+						) t ' . ($orderBy !== '' ? 'ORDER BY ' . $orderBy : '') . '
+					) t ' . ($orderBy !== '' ? 'ORDER BY ' . $orderByTwisted : '') . '
+				) t ' . ($orderBy !== '' ? 'ORDER BY ' . $orderBy : '');
+
+		} elseif ($limit >= 0) {
+			$sql = 'SELECT TOP ' . (int) $limit . ' * FROM (' . $sql . ') t ' . ($orderBy !== '' ? 'ORDER BY ' . $orderBy : '');
+
+		} else {
+			throw new NotImplementedException('Offset without limit or sorting is not implemented.');
 		}
 	}
 
@@ -289,7 +336,17 @@ class DibiMsSqlDriver extends DibiObject implements IDibiDriver
 	 */
 	public function fetch($assoc)
 	{
-		return mssql_fetch_array($this->resultSet, $assoc ? MSSQL_ASSOC : MSSQL_NUM);
+		$row = mssql_fetch_array($this->resultSet, $assoc ? MSSQL_ASSOC : MSSQL_NUM);
+
+		if (is_array($row)) {
+			foreach($row as &$v) {
+				if (is_string($v) && $this->dbcharset !== NULL && $this->charset !== NULL) {
+					$v = iconv($this->dbcharset, $this->charset . '//IGNORE', $v);
+				}
+			}
+		}
+
+		return $row;
 	}
 
 

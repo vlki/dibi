@@ -29,34 +29,34 @@
 class DibiDataSource extends DibiObject implements IDataSource
 {
 	/** @var DibiConnection */
-	private $connection;
+	protected $connection;
 
 	/** @var string */
-	private $sql;
+	protected $sql;
 
 	/** @var DibiResult */
-	private $result;
+	protected $result;
 
 	/** @var int */
-	private $count;
+	protected $count;
 
 	/** @var int */
-	private $totalCount;
+	protected $totalCount;
 
 	/** @var array */
-	private $cols = array();
+	protected $cols = array();
 
 	/** @var array */
-	private $sorting = array();
+	protected $sorting = array();
 
 	/** @var array */
-	private $conds = array();
+	protected $conds = array();
 
 	/** @var int */
-	private $offset;
+	protected $offset;
 
 	/** @var int */
-	private $limit;
+	protected $limit;
 
 
 
